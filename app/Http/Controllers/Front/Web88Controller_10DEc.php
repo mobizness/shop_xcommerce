@@ -1,0 +1,231 @@
+<?php 
+namespace App\Http\Controllers\Front;
+use App\Http\Controllers\Controller;
+use App\Http\Models\Front\Banners;
+use App\Http\Models\Front\Brands;
+use App\Http\Models\Front\Categories;
+use App\Http\Models\Front\Location;
+use App\Http\Models\Front\Newsletter;
+use App\Http\Models\Front\Page;
+use App\Http\Models\Front\Product;
+use View;
+use Session;
+use Input;
+use Illuminate\Http\RedirectResponse;
+use Auth;
+use Validator;
+use Hash;
+use DB;
+use Redirect;
+//use App\Http\Requests\Request;
+use Request;
+
+class Web88Controller extends Controller {
+	private $data = array();
+	
+	/**
+	 * Create a new controller instance.
+	 *
+	 * @return void
+	 */
+	public function __construct()
+	{
+/*
+		$this->CategoriesModel = new Categories();
+		$this->BrandsModel = new Brands();
+		$this->BannersModel = new Banners(); 
+		$this->ProductModel = new Product();
+		$this->NewsletterModel = new Newsletter();
+*/
+	}
+
+	/**
+	 * Show the about us page to the user.
+	 *
+	 * @return Response
+	 */
+	public function about()
+	{
+		$data = Page::where('page', '=', 'about')->firstOrFail();
+		$image = unserialize($data->bgimage);
+	//	$abbgimage = substr($image['image'], 3);
+		$abbgimage = $image['image'];
+		$item = unserialize($data->slider_text);
+		$about = unserialize($data->old_content);
+/*
+		$about['title'] = str_replace(
+			'<div id="page-header">',
+			'<div id="page-header" style="background-image: url('.url('/public/front/images/'.$abbgimage).')">',
+			$about['title']);
+*/
+//dd($about['title'], $image, $abbgimage);
+
+		return View::make('front.web88.about')->with([
+			'page_title'	=> 'About TBM',
+			'textslider'	=> $item,
+			'abbgimage'		=> $abbgimage,
+			'about'			=> $about,
+		]);
+	}
+
+	/**
+	 * Show the vacancy page to the user.
+	 *
+	 * @return Response
+	 */
+	public function vacancy()
+	{
+	// Load Main Menu Categories from shop.tbm.com.my
+//	$categories = $this->CategoriesModel->getCategories();
+//dd($categories); die;
+//exit('!!!!!');
+
+	$data = DB::table('pages')->where('page', 'vacancy')->first();
+//	$data = DB::connection('mysql_web88')->table('pages')->where('page', 'vacancy')->first();
+//	$data = DB::connection('mysql_staging')->table('pages')->where('page', 'vacancy')->first();
+	$header = unserialize($data->old_content);
+
+	$vacancy = [];
+	$title = '';
+	$location = '';
+	$list_location = '';
+	$list_title = '';
+		if(!empty($data->slider_text)){
+			$vacancy = unserialize($data->slider_text);
+			$list = $vacancy;
+			if( Request::isMethod('post') ){
+				$title = isset($_POST['title'])? $_POST['title'] : 'all';
+				$location = isset($_POST['location'])? $_POST['location'] : 'all';
+				if($title != 'all' || $location != 'all')
+			{
+				
+				$new_vacancy = [];
+				foreach($vacancy as $item){
+					if($item['location'] == $location && $item['title'] == $title){
+						$new_vacancy[] = $item;
+					}
+					if($location == 'all' && $item['title'] == $title){
+						$new_vacancy[] = $item;
+					}
+					if($title == 'all' && $item['location'] == $location){
+						$new_vacancy[] = $item;
+					}
+						
+				}
+				$vacancy = $new_vacancy;
+				
+			}
+			}
+			
+		$tit = [];
+		$loc = [];
+		foreach($list as $one){
+			if(!in_array($one['location'], $loc)){
+			$loc[] = $one['location'];
+			if($one['location'] == $location)
+				$list_location .= "<option selected='selected' value='{$one['location']}'>{$one['location']}</option>";
+			else
+				$list_location .= "<option value='{$one['location']}'>{$one['location']}</option>";
+			}
+			
+			if(!in_array($one['title'], $tit)){
+			$tit[] = $one['title'];
+			if($one['title'] == $title)
+				$list_title .= "<option selected='selected' value='{$one['title']}'>{$one['title']}</option>";
+			else
+				$list_title .= "<option value='{$one['title']}'>{$one['title']}</option>";
+			}
+			
+		}
+		}
+		$info = Page::where('page','=','applicants')->first();
+		$info = unserialize($info->old_content);
+			//print_r($vacancy);die();
+
+		return View::make('front.web88.vacancy')->with([
+		//	'shop_categories' => $categories,
+			'page_title'	=> 'Careers',
+			'url_tbm' => 'http://shops3.tbm.com.my/shop',		// 'http://shop.tbm.com.my'
+			'data' => $header,
+			'vacancy' => $vacancy,
+			'list_location' => $list_location,
+			'list_title' => $list_title,
+			'info' => $info,
+		]);
+	}
+
+
+	/**
+	 * Show the services page to the user.
+	 *
+	 * @return Response
+	 */
+	public function services()
+	{
+		$data = DB::table('pages')->where('page', 'services')->first();
+		$items = unserialize($data->new_content);
+
+		return View::make('front.web88.services')->with([
+			'page_title'	=> 'Our Services',
+			'data'			=> $items,
+		]);
+	}
+
+	/**
+	 * Show the services page to the user.
+	 *
+	 * @return Response
+	 */
+	public function stores()
+	{
+		$data = DB::table('pages')->where('page', 'stores')->first();
+		$item = unserialize($data->old_content);
+		$stores = [];
+		
+		if(!empty($data->slider_text)){
+			$stores = unserialize($data->slider_text);
+			$new_stores = [];
+		foreach( $stores as $value){
+			if(array_key_exists('active', $value)){
+				$new_stores[] =  $value;
+				}
+		}
+		$stores = $new_stores;
+		foreach( $stores as $key => $value){
+			
+				$location =  Location::find((int)$value['state']);
+				$stores[$key]['location'] = $location->state;	
+			
+		}
+		}
+		$names = [];
+		foreach($stores as $value){
+		if(array_key_exists('active', $value) && $value['active'])
+			$names[] = $value['location'];
+		}
+		$names = array_unique($names);
+
+		return View::make('front.web88.stores')->with([
+			'page_title'	=> 'Our Stores',
+			'data'			=> $item,
+			'stores'		=> $stores,
+			'names'			=> $names,
+		]);
+	}
+
+	/**
+	 * Show the services page to the user.
+	 *
+	 * @return Response
+	 */
+	public function contact()
+	{
+		$data = DB::table('pages')->where('page', 'contact')->first();
+		$item = unserialize($data->old_content);
+		return View::make('front.web88.contact')->with([
+			'page_title'	=> 'Contact Us',
+			'data'			=> $item,
+		]);
+
+	}
+}
